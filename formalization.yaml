@@ -1,0 +1,222 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/mathlib-initiative/formalization.yaml/main/schema/formalization.schema.json
+# Submission "Flows, including BKMNW maximum flow": Challenge PlanarFlowChallenge.lean,
+# Solution PlanarFlowSolution.lean, comparator configuration comparator.json
+# (paths relative to the repository root).
+version: "v0.4"
+
+project:
+  name: "Flows and shortest paths in plane graphs, with machine programs including the maximum-flow algorithm of Borradaile, Klein, Mozes, Nussbaum and Wulff-Nilsen, in Lean 4"
+  description: >-
+    A Lean 4 and Mathlib formalization of maximum flows and shortest paths.
+    Plane graphs are combinatorial maps (darts with a reversal, a tail
+    vertex, a face and a next dart along the face boundary) whose graph and
+    dual are connected and which satisfy Euler's formula V + F = D/2 + 2.
+    The machine statements are about one explicit word RAM (unit cost per
+    instruction, natural registers and memory cells bounded by a word bound
+    W along the run) and fixed encodings of the inputs as lists of natural
+    numbers; each asserts one fixed program for all inputs. Six theorems are
+    compared: (1) the max-flow min-cut theorem for a network with
+    nonnegative integer capacities and disjoint sets of sources and sinks:
+    some flow and some cut have equal value and capacity, so the flow is
+    maximum and the cut minimum; (2) the theorem of Miller and Naor: on a
+    plane map, given an antisymmetric g with net outflow b at every vertex,
+    a b-flow within the capacities u exists if and only if the dual graph
+    with lengths u - g has a feasible potential; (3) a program decides, for
+    every well-formed encoding of a plane map with V vertices, F faces and S
+    darts, natural capacities, supplies and demands, whether a feasible
+    flow exists, within 26 (S + 2)(V + F + 2) steps; (4) a program prints,
+    for each vertex of a digraph with n vertices, m arcs and natural
+    lengths, its distance from a source capped at a given value INF (so INF
+    for unreachable vertices), within (n + m + 1)(36 floor(log2 n) + 143)
+    steps; (5) a program
+    prints the size of a maximum matching of a bipartite graph with n
+    vertices and m arcs within 80 (n + 1)(n + m + 1) steps; (6) there are a
+    program and constants c and k such that, for every well-formed encoding
+    of a plane map (loops allowed) with n darts, K vertices, natural
+    capacities and disjoint sets of sources and sinks, and every word bound
+    W >= c (7 s)^k, where s is n + K plus the total capacity plus 2, the
+    program prints a maximum flow from the sources to the sinks, as a table
+    of flow values together with a valid index into it for every dart,
+    within c (n + K + 1)(floor(log2 n) + 1)^3 steps; this is the algorithm of
+    Borradaile, Klein, Mozes, Nussbaum and Wulff-Nilsen. The proofs use only
+    the axioms propext, Classical.choice and Quot.sound.
+  authors:
+    - "Robert D. Barish"
+  license: "Apache-2.0"
+  responsible_maintainers:
+    - "Robert D. Barish"
+
+classification:
+  arxiv: [math.CO, cs.DS]
+  msc2020: [05C10, 05C21, 05C38, 05C70, 05C85, 68Q25, 68W40, 90C35]
+
+sources:
+  - title: "Maximal flow through a network"
+    authors:
+      - "L. R. Ford"
+      - "D. R. Fulkerson"
+    type: paper
+    location: "Canadian Journal of Mathematics 8 (1956), 399-404"
+    relationship: formalizes
+    note: >-
+      The max-flow min-cut theorem, for sets of sources and sinks directly
+      (an augmenting path starts at any source and ends at any sink).
+      Formalized as PlanarFlow.maxflow_mincut.
+  - title: "Flow in planar graphs with multiple sources and sinks"
+    authors:
+      - "G. L. Miller"
+      - "J. Naor"
+    type: paper
+    location: "SIAM Journal on Computing 24 (1995), 1002-1017"
+    relationship: formalizes
+    note: >-
+      Feasible flows with supplies and demands in plane graphs through
+      potentials of the dual graph. Formalized as PlanarFlow.miller_naor, and
+      on the machine, by Bellman-Ford over the dual, as
+      PlanarFlow.feasible_flow_machine (O(n^2) steps, not the article's
+      bound).
+  - title: "A note on two problems in connexion with graphs"
+    authors:
+      - "E. W. Dijkstra"
+    type: paper
+    location: "Numerische Mathematik 1 (1959), 269-271"
+    relationship: formalizes
+    note: "Dijkstra's algorithm with a binary tournament-tree heap: PlanarFlow.dijkstra_machine."
+  - title: "Multiple-source multiple-sink maximum flow in directed planar graphs in near-linear time"
+    authors:
+      - "G. Borradaile"
+      - "P. N. Klein"
+      - "S. Mozes"
+      - "Y. Nussbaum"
+      - "C. Wulff-Nilsen"
+    type: paper
+    location: "SIAM Journal on Computing 46 (2017), 1280-1303"
+    relationship: formalizes
+    note: >-
+      Formalized on the machine as PlanarFlow.maxflow_machine: one fixed
+      program on natural words, O(n log^3 n) steps (with n + K in place of n),
+      for word bounds polynomial in the input size; the step constant and the
+      degree of the word bound are existentially quantified in the statement.
+      The proof is in PlanarFlow/BKMNW (theorem
+      PlanarFlow.BKMNW.Pp.maxFlowMachine_holds, PlanarFlow/BKMNW/Nf9aV.lean)
+      and uses multiple-source shortest paths, FR-Dijkstra, Monge searches and
+      link-cut trees (PlanarFlow/MSSP, PlanarFlow/Monge, PlanarFlow/DynTree,
+      PlanarFlow/NegSSSP).
+  - title: "Two theorems in graph theory"
+    authors:
+      - "C. Berge"
+    type: paper
+    location: "Proceedings of the National Academy of Sciences 43 (1957), 842-844"
+    relationship: adapts
+    note: >-
+      Augmenting paths. The program of PlanarFlow.bipartite_matching_machine
+      repeats phases; a phase searches breadth-first along alternating paths
+      from the free white vertices and, on reaching a free black vertex,
+      enlarges the matching along that augmenting path. Each phase costs
+      O(n + m) steps and all but the last enlarge the matching, giving
+      80 (n + 1)(n + m + 1) steps. The proof does not use Berge's theorem
+      itself: maximality at the end comes from Kőnig's certificate (next
+      source).
+  - title: "Gráfok és mátrixok (Graphs and matrices)"
+    authors:
+      - "D. Kőnig"
+    type: paper
+    location: "Matematikai és Fizikai Lapok 38 (1931), 116-119"
+    relationship: adapts
+    note: >-
+      The easy direction of Kőnig's theorem: a set of vertices meeting every
+      edge, of the size of a matching, shows that the matching is maximum. A
+      phase of the program that finds no free black vertex leaves such a
+      set (PlanarFlow.BM.card_le_size), which proves that the printed size
+      is the maximum in PlanarFlow.bipartite_matching_machine.
+
+related_formalizations: []
+
+status:
+  scope: >-
+    Proved: the six theorems stated in PlanarFlowChallenge.lean
+    (PlanarFlow.maxflow_mincut, miller_naor, feasible_flow_machine,
+    dijkstra_machine, bipartite_matching_machine, maxflow_machine), proved
+    in PlanarFlowSolution.lean (the first five from PlanarFlow/Main.lean,
+    the sixth from PlanarFlow/BKMNW/Nf9aV.lean) and compared by
+    lake comparator with comparator.json. Not formalized: the
+    correspondence between combinatorial maps and topological embeddings;
+    explicit values of the constants of the maximum-flow statement.
+  sorry_count: 0
+  sorry_in_definitions: 0
+  axioms: [propext, Classical.choice, Quot.sound]
+
+automation:
+  methods:
+    - method: agent
+      models: ["claude-opus-5-5"]
+      framework: "claude.ai"
+      tool_setup: >-
+        Claude Opus 5.5 (Anthropic) was used, as agents under the direction of the author, for the
+        Lean formalization and the documentation. The author set the task, the target statements and
+        the requirements. Tools: Lean v4.35.0-rc2 and Lake, Mathlib, the toolchain's lake comparator
+        and independent kernels.
+      cost:
+        wall_time: "not tracked"
+        spend_usd: "not tracked"
+        hardware: "cloud container"
+      prompting_notes: "n/a"
+  spend_usd: "not tracked"
+
+fidelity:
+  divergences: >-
+    (1) Plane graphs are combinatorial maps whose graph and dual are
+    connected and which satisfy Euler's formula, not drawings; that these
+    are exactly the plane embeddings is classical and not formalized. (2)
+    The feasibility test runs Bellman-Ford over the dual, O(n^2) steps, not
+    the near-linear algorithms of the literature. (3) The machine statements
+    are about one explicit machine (unit cost per instruction, natural words
+    bounded by W along the run) and fixed input encodings; the programs are
+    existentially quantified. (4) Capacities and lengths are integers
+    (natural numbers in the encodings). (5) In the maximum-flow statement
+    the constants c and k are existentially quantified, the word bound must
+    be at least c (7 s)^k where s includes the total capacity, and the
+    encoding must list the darts so that the rotation and the face walk are
+    transitive on the darts of each vertex and of each face. The output is
+    a list p ++ Z :: q with |p| = n and p[x] < |q| for every dart x < n;
+    the flow on dart x is q[p[x]] - Z (written q.getD (p.getD x 0) 0 - Z
+    in Lean, with both lookups in range by the statement).
+
+review:
+  status: "unreviewed"
+  reviewers: []
+  notes: >-
+    No claims beyond the verification report for the submitted commit. The
+    proofs have not been reviewed by a person.
+
+alignment:
+  namespace: "PlanarFlow"
+  statements:
+    - source: "Ford-Fulkerson 1956: the max-flow min-cut theorem (multiple sources and sinks)"
+      lean: "PlanarFlow.maxflow_mincut"
+      module: "PlanarFlowSolution"
+      status: proved
+    - source: "Miller-Naor 1995: feasible flows with supplies and demands in plane graphs via dual potentials"
+      lean: "PlanarFlow.miller_naor"
+      module: "PlanarFlowSolution"
+      status: proved
+    - source: "Feasible flows in plane graphs on the machine, O(n^2) steps"
+      lean: "PlanarFlow.feasible_flow_machine"
+      module: "PlanarFlowSolution"
+      status: proved
+    - source: "Dijkstra 1959: single-source distances on the machine, O((n + m) log n) steps"
+      lean: "PlanarFlow.dijkstra_machine"
+      module: "PlanarFlowSolution"
+      status: proved
+    - source: "Maximum bipartite matching by augmenting paths (Berge 1957) with Kőnig's certificate (Kőnig 1931) on the machine, O(n (n + m)) steps"
+      lean: "PlanarFlow.bipartite_matching_machine"
+      module: "PlanarFlowSolution"
+      status: proved
+    - source: "Borradaile-Klein-Mozes-Nussbaum-Wulff-Nilsen 2017: multiple-source multiple-sink maximum flow in plane graphs on the machine, O(n log^3 n) steps"
+      lean: "PlanarFlow.maxflow_machine"
+      module: "PlanarFlowSolution"
+      status: proved
+
+acknowledgements: >-
+  Mathlib and the Lean community; the Lean toolchain's lake comparator and
+  independent kernels.

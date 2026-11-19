@@ -1,0 +1,19 @@
+{
+  "challenge_module": "PlanarFlowChallenge",
+  "solution_module": "PlanarFlowSolution",
+  "theorem_names": [
+    "PlanarFlow.maxflow_mincut",
+    "PlanarFlow.miller_naor",
+    "PlanarFlow.feasible_flow_machine",
+    "PlanarFlow.dijkstra_machine",
+    "PlanarFlow.bipartite_matching_machine",
+    "PlanarFlow.maxflow_machine"
+  ],
+  "definition_names": [],
+  "permitted_axioms": [
+    "propext",
+    "Quot.sound",
+    "Classical.choice"
+  ],
+  "enable_nanoda": true
+}
