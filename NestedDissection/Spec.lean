@@ -23,11 +23,12 @@ files import it, so their theorems are about exactly these constants.
   tree is a separator tree of a graph (`SepTree.IsDissection`), and the nested dissection order
   (`SepTree.order`: recursively the first part, the second part, then the separator).
 * Conditions on all nodes (`SepTree.AllNodes`): parts of at most two thirds of the vertices
-  (`SepTree.Shrinks`), separators and boundaries of at most `α √m` and `β √m` vertices at a node
-  with `m` vertices (`SepTree.SqrtBound`).
+  (`SepTree.Shrinks`), separators and boundaries of at most `α √k` and `β √k` vertices at a node
+  with `k` vertices (`SepTree.SqrtBound`).
 * The filled graph of an elimination order (`fill`, through walks with low interior,
   `LowWalk`), and the later neighbours of a vertex (`laterNbrs`).
-* Gaussian elimination without pivoting written in place (`elimStep`, `stage`), and the same
+* In-place elimination steps (`elimStep`, `stage`; Gaussian elimination without pivoting when
+  the pivots are nonzero, with the totalized inverse `0⁻¹ = 0` otherwise), and the same
   elimination restricted to the positions of a graph `H`, in the counting monad
   (`sparseStepCounted`, `sparseCounted`), with inversion charged one multiplication (`opInv`).
 * Leading principal submatrices (`leading`) and the square of a graph (`PlanarSeparator.square`).
@@ -94,8 +95,8 @@ def Shrinks : SepTree V → Prop
   | node s a b => 3 * a.verts.card ≤ 2 * (node s a b).verts.card ∧
       3 * b.verts.card ≤ 2 * (node s a b).verts.card
 
-/-- The separator bound `|own t| ≤ α √m` and the boundary bound `|bdry t| ≤ β √m` at the root
-of `t`, where `m` is the number of vertices of `t`. -/
+/-- The separator bound `|own t| ≤ α √k` and the boundary bound `|bdry t| ≤ β √k` at the root
+of `t`, where `k` is the number of vertices of `t`. -/
 def SqrtBound [Fintype V] (G : SimpleGraph V) [DecidableRel G.Adj] (α β : ℝ) (t : SepTree V) :
     Prop :=
   (t.own.card : ℝ) ≤ α * √(t.verts.card) ∧ ((bdry G t.verts).card : ℝ) ≤ β * √(t.verts.card)
@@ -179,11 +180,14 @@ def leading {n : ℕ} (A : Matrix (Fin n) (Fin n) K) (k : ℕ) (hk : k ≤ n) :
 
 variable [Field K]
 
-/-- The in-place elimination step with pivot `k`. -/
+/-- The in-place elimination step with pivot `k`: `M i j - M i k * (M k k)⁻¹ * M k j` for
+`i, j > k`. The inverse is the field's, with `0⁻¹ = 0`, so at a zero pivot the step leaves `M`
+unchanged. -/
 def elimStep {n : ℕ} (k : Fin n) (M : Matrix (Fin n) (Fin n) K) : Matrix (Fin n) (Fin n) K :=
   Matrix.of fun i j => if k < i ∧ k < j then M i j - M i k * (M k k)⁻¹ * M k j else M i j
 
-/-- `stage A k`: the matrix after the elimination steps with pivots `0, …, k - 1`. -/
+/-- `stage A k`: the matrix after the elimination steps with pivots `0, …, k - 1`; Gaussian
+elimination without pivoting when these pivots are nonzero. -/
 def stage {n : ℕ} (A : Matrix (Fin n) (Fin n) K) : ℕ → Matrix (Fin n) (Fin n) K
   | 0 => A
   | k + 1 => if h : k < n then elimStep ⟨k, h⟩ (stage A k) else stage A k

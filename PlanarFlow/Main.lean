@@ -6,6 +6,7 @@ public import PlanarFlow.Plane.Feasible
 public import PlanarFlow.Machine.Main
 public import PlanarFlow.Dijkstra.Run
 public import PlanarFlow.Matching.Main
+public import WordRAM.Machine.IsWord
 
 /-!
 # The targets of `PlanarFlow/Spec.lean`
@@ -44,16 +45,19 @@ theorem miller_naor : MillerNaor.{u} := by
 /-- **Feasible flows in plane graphs on the machine.** -/
 theorem feasible_flow_machine : FeasibleFlowMachine :=
   ⟨WordRAM.Machine.Stmt.compile Feas.prog 0 ++ [WordRAM.Instr.halt],
+    WordRAM.Machine.Stmt.isWord_compile_halt (by kernel_rfl),
     fun _ _ he => Feas.feas_runsWithin he⟩
 
 /-- **Dijkstra's algorithm on the machine.** -/
 theorem dijkstra_machine : DijkstraMachine :=
   ⟨WordRAM.Machine.Stmt.compile Dijk.prog 0 ++ [WordRAM.Instr.halt],
+    WordRAM.Machine.Stmt.isWord_compile_halt (by kernel_rfl),
     fun _ _ he => Dijk.dijkstra_runsWithin he⟩
 
 /-- **Maximum bipartite matching on the machine.** -/
 theorem bipartite_matching_machine : BipartiteMatchingMachine :=
   ⟨WordRAM.Machine.Stmt.compile BM.prog 0 ++ [WordRAM.Instr.halt],
+    WordRAM.Machine.Stmt.isWord_compile_halt (by kernel_rfl),
     fun _ _ he => BM.matching_runsWithin he⟩
 
 end PlanarFlow

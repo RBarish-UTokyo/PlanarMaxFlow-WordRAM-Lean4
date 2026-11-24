@@ -2,6 +2,7 @@ module
 
 public import PlanarFlow.BKMNW.LgKey
 public import PlanarFlow.BKMNW.ScTouch
+public import Mathlib.Data.List.GetD
 
 /-!
 # The pre-filter of the holes: relabel the hole labels by the touching holes, in `O(n + k)`

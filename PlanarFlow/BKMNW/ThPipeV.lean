@@ -12,9 +12,11 @@ every case `q` has `7 n` entries and every printed index `p[x]` (`x < n`) is bel
 
 * `zeroBr`, `mfFullV`, `mfTopV`: the programs (`mfFullL'`, `mfTopL'` of `ThPipe.lean` with the
   branch for all loops replaced by `zeroBr`);
+* `mfTopV_natOnly`, `mfTopV_isWord`: the program has no real instruction when its five subroutine
+  programs have none, so its compiled code is a word program (`WordRAM.Program.IsWord`);
 * `mf_execV`, `mf_pipelineTV`, **`maxFlowMachineV_of_spec`**: as `mf_execL''`, `mf_pipelineTL''`,
   `maxFlowMachine_of_spec''`, with the conclusion `MaxFlowMachine` (`PlanarFlow/SpecMaxFlow.lean`):
-  in addition, `p[x] < |q|` for every `x < n`.
+  in addition, `p[x] < |q|` for every `x < n`, and the program is a word program.
 -/
 
 @[expose] public section
@@ -52,6 +54,51 @@ def mfTopV (a p : ℕ) (sepL sepX fixP c2sP s2cP retP frmP : Stmt) : Stmt :=
   .seq (block [.constN 8900 0, .constN 8778 2, .readIn 8901 8778])
     (.ifLtN 8900 8901 (mfFullV a p sepL sepX fixP c2sP s2cP retP frmP)
       (block [.constN 8902 0, .outN 8902]))
+
+/-! ### The program has no real instruction -/
+
+/-- The power loop has no real instruction. -/
+theorem zPow_natOnly : ∀ k, Klein.natOnly (zPow k) = true
+  | 0 => by decide +kernel
+  | k + 1 => by
+    have h : Klein.natOnly (block [.mulN 8801 8801 8790]) = true := by decide +kernel
+    simp only [zPow, Klein.natOnly, zPow_natOnly k, h, Bool.and_self]
+
+/-- The base program has no real instruction. -/
+theorem zP_natOnly (a p : ℕ) : Klein.natOnly (zP a p) = true := by
+  have hz : Klein.natOnly zPre = true := by decide +kernel
+  have hs : Klein.natOnly (sumL (vbW 7)) = true := by decide +kernel
+  have hb : Klein.natOnly zBase = true := by decide +kernel
+  have he : Klein.natOnly (zEnd a) = true := by
+    simp [zEnd, block, Klein.natOnly, Instr.isReal]
+  simp only [zP, Klein.natOnly, hz, hs, hb, he, zPow_natOnly, Bool.and_self]
+
+/-- **The maximum-flow program has no real instruction** when its five subroutine programs have
+none (`Klein.natOnly`: no real instruction and no real test). -/
+theorem mfTopV_natOnly {a p : ℕ} {sepL sepX fixP c2sP s2cP : Stmt}
+    (h1 : Klein.natOnly sepL = true) (h2 : Klein.natOnly sepX = true)
+    (h3 : Klein.natOnly fixP = true) (h4 : Klein.natOnly c2sP = true)
+    (h5 : Klein.natOnly s2cP = true) :
+    Klein.natOnly (mfTopV a p sepL sepX fixP c2sP s2cP retP frmP) = true := by
+  simp only [mfTopV, mfFullV, mfProgS', preL, prBBL, zeroBr, NegSSSP.Driver.driver,
+    NegSSSP.Driver.body, splitSX, spFront, sepPX, nodeSF, stepX, segP', stepPO, segBodyP,
+    holeBodyP, Klein.natOnly, h1, h2, h3, h4, h5, retP_natOnly, frmP_natOnly, zP_natOnly,
+    Bool.true_and]
+  decide +kernel
+
+/-- **The compiled maximum-flow program is a word program** when its five subroutine programs
+have no real instruction. -/
+theorem mfTopV_isWord {a p : ℕ} {sepL sepX fixP c2sP s2cP : Stmt}
+    (h1 : Klein.natOnly sepL = true) (h2 : Klein.natOnly sepX = true)
+    (h3 : Klein.natOnly fixP = true) (h4 : Klein.natOnly c2sP = true)
+    (h5 : Klein.natOnly s2cP = true) :
+    Program.IsWord (compile (mfTopV a p sepL sepX fixP c2sP s2cP retP frmP) 0 ++ [Instr.halt]) := by
+  intro j hj
+  rcases List.mem_append.mp hj with hj | hj
+  · exact Klein.compile_natOnly _ (mfTopV_natOnly h1 h2 h3 h4 h5) 0 j hj
+  · simp only [List.mem_singleton] at hj
+    subst hj
+    rfl
 
 set_option maxHeartbeats 4000000 in
 /-- **The run of the maximum-flow program `mfFullV`, loops allowed**, from any configuration with
@@ -330,12 +377,16 @@ theorem maxFlowMachineV_of_spec {sepL sepX fixP c2sP s2cP : Stmt} {C C₀ : ℕ}
     (hE1 : Stmt.noEmit sepL = true) (hE2 : Stmt.noEmit sepX = true)
     (hE3 : Stmt.noEmit fixP = true) (hE4 : Stmt.noEmit c2sP = true)
     (hE5 : Stmt.noEmit s2cP = true)
+    (hN1 : Klein.natOnly sepL = true) (hN2 : Klein.natOnly sepX = true)
+    (hN3 : Klein.natOnly fixP = true) (hN4 : Klein.natOnly c2sP = true)
+    (hN5 : Klein.natOnly s2cP = true)
     (hRm : ∀ N N' Z Z', N ≤ N' → Z ≤ Z' → R N Z ≤ R N' Z')
     (hR : ∀ N Z, R N Z ≤ r * (N + Z + 1) ^ q)
     (hWZ : ∀ N Z, WZ N Z ≤ a * (N + Z + 1) ^ p) :
     MaxFlowMachine := by
   refine ⟨compile (mfTopV a p sepL sepX fixP c2sP s2cP retP frmP) 0 ++ [Instr.halt],
-    20 * (r + a) + 1000000 + cMF C C₀ p, p + q + 4, fun d W he hW => ?_⟩
+    20 * (r + a) + 1000000 + cMF C C₀ p, p + q + 4, mfTopV_isWord hN1 hN2 hN3 hN4 hN5,
+    fun d W he hW => ?_⟩
   have h : MEncL d W := ⟨he.wf, he.plane, he.rotT, he.faceT, he.disj, he.word_le⟩
   have hpw : pipeW r a p q d ≤ W := by
     unfold pipeW

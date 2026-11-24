@@ -12,24 +12,25 @@ public import Mathlib.Logic.Relation
 
 This file is the statement a mathematical reader should audit. It states six results:
 
-* `PlanarFlow.maxflow_mincut`: the max-flow min-cut theorem for multiple sources and sinks
-  (Ford and Fulkerson; Elias, Feinstein and Shannon);
-* `PlanarFlow.miller_naor`: on a plane map (a combinatorial map whose graph and dual are
-  connected and which satisfies Euler's formula), a flow meeting supplies and demands within
-  capacities exists if and only if the dual graph with the reduced capacities has a feasible
-  potential (Miller and Naor);
-* `PlanarFlow.feasible_flow_machine`: one fixed program for the word RAM `WordRAM` decides that
-  question for every plane map, given by a standard encoding with `V` vertices, `F` faces and `S`
-  darts, within `26 (S + 2)(V + F + 2)` steps;
-* `PlanarFlow.dijkstra_machine`: one fixed program computes single-source distances in a digraph
-  with nonnegative lengths within `(n + m + 1)(36 log2 n + 143)` steps;
-* `PlanarFlow.bipartite_matching_machine`: one fixed program prints the size of a maximum
+* `PlanarFlow.maxflow_mincut`: the max-flow min-cut theorem for multiple sources and sinks (Ford and
+  Fulkerson; Elias, Feinstein and Shannon);
+* `PlanarFlow.miller_naor`: on a plane map (a combinatorial map whose graph and dual are connected
+  and which satisfies Euler's formula), a flow meeting supplies and demands within capacities exists
+  if and only if the dual graph with the reduced capacities has a feasible potential (Miller and
+  Naor);
+* `PlanarFlow.feasible_flow_machine`: one fixed word program for the word RAM `WordRAM` (no real
+  instruction, `WordRAM.Program.IsWord`, so every run uses only natural words) decides that question
+  for every plane map, given by a standard encoding with `V` vertices, `F` faces and `S` darts,
+  within `26 (S + 2)(V + F + 2)` steps;
+* `PlanarFlow.dijkstra_machine`: one fixed word program computes single-source distances in a
+  digraph with nonnegative lengths within `(n + m + 1)(36 log2 n + 143)` steps;
+* `PlanarFlow.bipartite_matching_machine`: one fixed word program prints the size of a maximum
   matching of a bipartite graph within `80 (n + 1)(n + m + 1)` steps;
-* `PlanarFlow.maxflow_machine`: one fixed program computes a maximum flow from the sources to the
-  sinks of a plane map with `n` darts and `K` vertices (loops allowed) within
-  `c (n + K + 1)(log2 n + 1)^3` steps, for a word size at least `c (7 size)^k` (Borradaile,
-  Klein, Mozes, Nussbaum and Wulff-Nilsen); it prints a table of flow values and, for every dart,
-  a valid index into that table.
+* `PlanarFlow.maxflow_machine`: one fixed word program computes a maximum flow from the sources to
+  the sinks of a plane map with `n` darts and `K` vertices (loops allowed) within
+  `c (n + K + 1)(log2 n + 1)^3` steps, for a word size at least `c (7 size)^k` (Borradaile, Klein,
+  Mozes, Nussbaum and Wulff-Nilsen); it prints a table of flow values and, for every dart, a valid
+  index into that table.
 
 These are results of
 
@@ -42,6 +43,10 @@ These are results of
   G. Borradaile, P. N. Klein, S. Mozes, Y. Nussbaum, C. Wulff-Nilsen, *Multiple-source
   multiple-sink maximum flow in directed planar graphs in near-linear time*, SIAM J. Comput. 46
   (2017), 1280-1303.
+
+Maximum bipartite matching by augmenting paths is classical (the method of Ford and Fulkerson); the
+word-RAM programs, their input encodings and their explicit bounds are those of this
+formalization.
 
 The authoritative sources of every definition below are `WordRAM/Spec.lean` (the machine) and
 `PlanarFlow/Spec.lean` (everything else, and five of the six target propositions) and
@@ -118,6 +123,17 @@ inductive Instr : Type
 
 /-- A program is a finite list of instructions; instruction addresses are list positions. -/
 abbrev Program : Type := List Instr
+
+/-- A real instruction: one that reads or writes a real register or a real memory cell, or
+compares two real registers. -/
+def Instr.isReal : Instr → Bool
+  | .constR .. | .copyR .. | .addR .. | .subR .. | .mulR .. | .divR .. | .loadR .. | .storeR ..
+  | .brLtR .. => true
+  | _ => false
+
+/-- A word program: it contains no real instruction, so its runs touch only the natural
+registers and natural memory. -/
+def Program.IsWord (prog : Program) : Prop := ∀ i ∈ prog, i.isReal = false
 
 /-- A machine configuration. -/
 structure Config where
@@ -524,36 +540,39 @@ def MillerNaor : Prop :=
     M.IsAntisymm g → (∀ v, M.div g v = b v) →
     ((∃ f, M.IsBFlow b u f) ↔ ∃ φ, M.IsPotential (u - g) φ)
 
-/-- **Feasible flows in plane graphs on the machine.** One program for the word RAM decides,
-for every well-formed input describing a plane map with `V` vertices, `F` faces and `S` darts,
-capacities on the darts and supplies and demands at the vertices, whether a flow meeting the
-supplies and demands within the capacities exists: it halts within `26 (S + 2)(V + F + 2)`
-steps (`O(n²)` for plane graphs) and prints `1` if such a flow exists and `0` otherwise. -/
+/-- **Feasible flows in plane graphs on the machine.** One word program for the word RAM (no real
+instruction, `WordRAM.Program.IsWord`) decides, for every well-formed input describing a plane map
+with `V` vertices, `F` faces and `S` darts, capacities on the darts and supplies and demands at the
+vertices, whether a flow meeting the supplies and demands within the capacities exists: it halts
+within `26 (S + 2)(V + F + 2)` steps (`O(n²)` for plane graphs) and prints `1` if such a flow exists
+and `0` otherwise. -/
 def FeasibleFlowMachine : Prop :=
-  ∃ prog : WordRAM.Program, ∀ (d : List ℕ) (W : ℕ) (he : Feas.Enc d W),
+  ∃ prog : WordRAM.Program, WordRAM.Program.IsWord prog ∧
+    ∀ (d : List ℕ) (W : ℕ) (he : Feas.Enc d W),
     ∃ ans : ℕ, ans ≤ 1 ∧ (ans = 1 ↔ Feas.Feasible he.wf) ∧
       WordRAM.RunsWithin prog (Feas.inp d) W
         (26 * (Feas.nd d + 2) * (Feas.nv d + Feas.nf d + 2)) [ans]
 
-/-- **Dijkstra's algorithm on the machine.** One program for the word RAM computes, for every
-well-formed input (a digraph with `n` vertices, `m` arcs grouped by their tails, natural lengths,
-a source and a word `INF`), within `(n + m + 1)(36 ⌊log₂ n⌋ + 143)` steps, the distance from the
-source to every vertex capped at `INF`: the printed value of `v` is at most `INF` and at most the
-length of every walk from the source to `v`, and if it is below `INF` it is the length of such a
-walk (so it is `INF` when there is no walk). -/
+/-- **Dijkstra's algorithm on the machine.** One word program for the word RAM (no real instruction,
+`WordRAM.Program.IsWord`) computes, for every well-formed input (a digraph with `n` vertices, `m`
+arcs grouped by their tails, natural lengths, a source and a word `INF`), within
+`(n + m + 1)(36 ⌊log₂ n⌋ + 143)` steps, the distance from the source to every vertex capped at
+`INF`: the printed value of `v` is at most `INF` and at most the length of every walk from the
+source to `v`, and if it is below `INF` it is the length of such a walk (so it is `INF` when there
+is no walk). -/
 def DijkstraMachine : Prop :=
-  ∃ prog : WordRAM.Program, ∀ (d : List ℕ) (W : ℕ), Dijk.DEnc d W →
+  ∃ prog : WordRAM.Program, WordRAM.Program.IsWord prog ∧ ∀ (d : List ℕ) (W : ℕ), Dijk.DEnc d W →
     ∃ Dv : ℕ → ℕ, (∀ v < Dijk.nn d, Dv v ≤ Dijk.inf d ∧
         (Dv v < Dijk.inf d → Dijk.Reach d v (Dv v)) ∧ ∀ ℓ, Dijk.Reach d v ℓ → Dv v ≤ ℓ) ∧
       WordRAM.RunsWithin prog (Dijk.inp d) W
         ((Dijk.nn d + Dijk.mm d + 1) * (36 * Nat.log 2 (Dijk.nn d) + 143))
         ((List.range (Dijk.nn d)).map Dv)
 
-/-- **Maximum bipartite matching on the machine.** One program for the word RAM prints, for
-every well-formed bipartite graph with `n` vertices and `m` arcs, the size of a maximum matching,
-within `80 (n + 1)(n + m + 1)` steps. -/
+/-- **Maximum bipartite matching on the machine.** One word program for the word RAM (no real
+instruction, `WordRAM.Program.IsWord`) prints, for every well-formed bipartite graph with `n`
+vertices and `m` arcs, the size of a maximum matching, within `80 (n + 1)(n + m + 1)` steps. -/
 def BipartiteMatchingMachine : Prop :=
-  ∃ prog : WordRAM.Program, ∀ (d : List ℕ) (W : ℕ), BM.Enc d W →
+  ∃ prog : WordRAM.Program, WordRAM.Program.IsWord prog ∧ ∀ (d : List ℕ) (W : ℕ), BM.Enc d W →
     ∃ k : ℕ, (∃ M, BM.IsMatching d M ∧ M.card = k) ∧ (∀ M, BM.IsMatching d M → M.card ≤ k) ∧
       WordRAM.RunsWithin prog (BM.inp d) W (80 * (BM.nn d + 1) * (BM.nn d + BM.mm d + 1)) [k]
 
@@ -572,7 +591,7 @@ machine.
   most `W`; `Feas.size' d` is the number of darts and vertices plus the total capacity, plus `2`.
 * `Feas.IsSTFlow'`: antisymmetric, within the capacities, conserved off the sources and sinks;
   `Feas.stValue'`: the net flow out of the sources.
-* `MaxFlowMachine`: one program computes a maximum flow within `c (n + K + 1)(⌊log₂ n⌋ + 1)³`
+* `MaxFlowMachine`: one word program computes a maximum flow within `c (n + K + 1)(⌊log₂ n⌋ + 1)³`
   steps (`n` darts, `K` vertices) whenever the word bound is at least `c (7 · size)^k`; every
   printed index lies in the printed flow table.
 -/
@@ -618,14 +637,16 @@ def size' (d : List ℕ) : ℕ := nd d + nv d + ∑ i ∈ Finset.range (nd d), c
 end Feas
 
 /-- **Maximum flow in plane graphs on the machine** (Borradaile, Klein, Mozes, Nussbaum,
-Wulff-Nilsen). One program for the word RAM computes, for every well-formed input describing a
-plane map with `n` darts and `K` vertices (loops allowed), capacities on the darts and sets of
-sources and sinks, a maximum flow from the sources to the sinks within
-`c (n + K + 1)(⌊log₂ n⌋ + 1)³` steps, whenever the word size is at least `c (7 · size)^k`: it
-prints `p ++ Z :: q` with `|p| = n` and `p[x] < |q|` for every dart `x < n`, the flow on dart `x`
-being `q[p[x]] - Z` (written `q.getD (p.getD x 0) 0 - Z`; both lookups are in range). -/
+Wulff-Nilsen). One word program for the word RAM (no real instruction, `WordRAM.Program.IsWord`)
+computes, for every well-formed input describing a plane map with `n` darts and `K` vertices (loops
+allowed), capacities on the darts and sets of sources and sinks, a maximum flow from the sources to
+the sinks within `c (n + K + 1)(⌊log₂ n⌋ + 1)³` steps, whenever the word size is at least
+`c (7 · size)^k`: it prints `p ++ Z :: q` with `|p| = n` and `p[x] < |q|` for every dart `x < n`,
+the flow on dart `x` being `q[p[x]] - Z` (written `q.getD (p.getD x 0) 0 - Z`; both lookups are in
+range). -/
 def MaxFlowMachine : Prop :=
-  ∃ (prog : WordRAM.Program) (c k : ℕ), ∀ (d : List ℕ) (W : ℕ) (he : Feas.MEnc' d W),
+  ∃ (prog : WordRAM.Program) (c k : ℕ), WordRAM.Program.IsWord prog ∧
+    ∀ (d : List ℕ) (W : ℕ) (he : Feas.MEnc' d W),
     c * (7 * Feas.size' d) ^ k ≤ W →
     ∃ (p : List ℕ) (Z : ℕ) (q : List ℕ), p.length = Feas.nd d ∧
       (∀ x < Feas.nd d, p.getD x 0 < q.length) ∧

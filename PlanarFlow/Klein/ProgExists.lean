@@ -1,6 +1,7 @@
 module
 
 public import PlanarFlow.Klein.ProgTrip
+public import Mathlib.Data.List.GetD
 
 /-!
 # Klein's algorithm on the machine: the preconditions can be met

@@ -3,6 +3,7 @@ module
 public import PlanarFlow.STFlow.PstC
 public import PlanarFlow.STFlow.IsoExec
 public import WordRAM.Machine.KernelRfl
+public import Mathlib.Data.List.GetD
 
 /-!
 # The s-t flow program compares reals within a polynomial bound

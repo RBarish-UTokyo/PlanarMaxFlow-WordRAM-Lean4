@@ -11,7 +11,7 @@ import PlanarFlow
 # Axiom audit
 
 Prints the axioms of the 6 compared theorems (stated in `PlanarFlowChallenge.lean`, proved by
-`PlanarFlowSolution.lean`) and of 2753 further theorems of the libraries. Every report must name only
+`PlanarFlowSolution.lean`) and of 2759 further theorems of the libraries. Every report must name only
 `propext`, `Classical.choice` and `Quot.sound`. Run it with
 
     lake build && lake env lean Audit.lean
@@ -865,6 +865,9 @@ Prints the axioms of the 6 compared theorems (stated in `PlanarFlowChallenge.lea
 #print axioms WordRAM.Machine.Stmt.exec_realsToNat
 #print axioms WordRAM.Machine.Stmt.runsWithin_realsToNat
 #print axioms WordRAM.Machine.Stmt.compile_realsToNat_noReal
+#print axioms WordRAM.Program.isWord_of_all
+#print axioms WordRAM.Machine.Stmt.compile_wordOnly
+#print axioms WordRAM.Machine.Stmt.isWord_compile_halt
 #print axioms WordRAM.Machine.Exec.det
 #print axioms WordRAM.Machine.Exec.toExecI_linLoopFree
 #print axioms WordRAM.Machine.Exec.toExecI_whileLtR
@@ -2761,6 +2764,9 @@ Prints the axioms of the 6 compared theorems (stated in `PlanarFlowChallenge.lea
 #print axioms PlanarFlow.BKMNW.F9b.rOF9_Rm_le
 #print axioms PlanarFlow.BKMNW.Pp.maxFlowMachine'_holds
 #print axioms PlanarFlow.BKMNW.Pp.maxFlowMachine_holds
+#print axioms PlanarFlow.BKMNW.Pp.mfTopV_isWord
+#print axioms PlanarFlow.BKMNW.F9b.fixC_natOnly
+#print axioms PlanarFlow.BKMNW.fixP7_natOnly
 #print axioms PlanarFlow.BKMNW.Pp.maxFlowMachineV_of_spec
 #print axioms PlanarFlow.BKMNW.Pp.mf_execV
 #print axioms PlanarFlow.BKMNW.Pp.mf_pipelineTV

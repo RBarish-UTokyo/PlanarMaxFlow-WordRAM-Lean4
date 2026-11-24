@@ -16,16 +16,16 @@ public import Mathlib.LinearAlgebra.Matrix.Determinant.Basic
 
 This file is the authoritative statement of the library. It imports only Mathlib and the
 machine model `WordRAM.Spec` (which itself imports only Mathlib), and it contains every
-definition that the four target propositions below use. The development imports this file, so
+definition that the five target propositions below use. The development imports this file, so
 the theorems of the library are about exactly these constants. `Challenge.lean` contains a
-generated, self-contained copy of `WordRAM/Spec.lean` and of this file, followed by the four
+generated, self-contained copy of `WordRAM/Spec.lean` and of this file, followed by the five
 targets with `sorry`.
 
 ## Contents
 
 * Rotation systems (`RotationSystem`), the face permutation (`RotationSystem.faceNext`), faces
   (`RotationSystem.Face`, `RotationSystem.face`) and plane rotation systems
-  (`RotationSystem.IsPlane`: connected, with Euler's formula `V + F = E + 2`).
+  (`RotationSystem.IsPlane`: connected, with Euler's formula `|V| + |F| = |E| + 2`).
 * Orientations (`IsOrientation`), clockwise edges of a face (`RotationSystem.cwCount`) and
   Kasteleyn orientations (`RotationSystem.IsKasteleyn`).
 * The Pfaffian (`pf`, by expansion along the first row), perfect matchings
@@ -33,8 +33,8 @@ targets with `sorry`.
   orientation (`signedAdj`).
 * The encoding of a rotation system as an input of the machine (`Orient.rotEnc`), the slot of a
   dart in it (`Orient.pos`) and the word bound (`Orient.rotW`).
-* The targets: `OrientationExists`, `PfaffianFormula`, `MatchingCount` and
-  `LinearTimeOrientation`.
+* The targets: `OrientationExists`, `PfaffianFormula`, `MatchingCount`,
+  `LinearTimeOrientation` and `EdgelessCase`.
 
 ## Conventions
 
@@ -104,7 +104,11 @@ instance : Fintype M.Face :=
   @Quotient.fintype _ _ _ (Equiv.Perm.instDecidableRelSameCycle M.faceNext)
 
 /-- A rotation system is *plane* (of genus zero) if the graph is connected and Euler's formula
-`V - E + F = 2` holds. -/
+`|V| + |F| = |E| + 2` holds, `F` the set of faces.
+
+Faces are the cycles of the face permutation on the darts, so a graph without edges has no
+faces here. A connected graph without edges is a single vertex; it is not plane in this sense
+(`1 + 0 ≠ 0 + 2`), so statements assuming `IsPlane` leave it out. -/
 structure IsPlane : Prop where
   connected : G.Connected
   euler : Fintype.card V + Fintype.card M.Face = #G.edgeFinset + 2
@@ -296,16 +300,18 @@ end Orient
 
 universe u v
 
-/-- **Existence of Kasteleyn orientations** (Kasteleyn 1963, 1967). Every connected rotation
-system has a Kasteleyn orientation with respect to any choice of the outer face. -/
+/-- **Existence of Kasteleyn orientations** (Kasteleyn 1963, 1967). Every rotation system of a
+connected graph with at least one edge has a Kasteleyn orientation with respect to any choice of
+the outer face. -/
 def OrientationExists : Prop :=
   ∀ {V : Type u} [Fintype V] [DecidableEq V] (G : SimpleGraph V) [DecidableRel G.Adj]
-    (M : RotationSystem G), G.Connected → ∀ f₀ : M.Face, ∃ o : G.Dart → Bool, M.IsKasteleyn o f₀
+    (M : RotationSystem G), G.Connected → G.edgeFinset.Nonempty →
+      ∀ f₀ : M.Face, ∃ o : G.Dart → Bool, M.IsKasteleyn o f₀
 
-/-- **Kasteleyn's theorem**, weighted form. For a plane rotation system with a Kasteleyn
-orientation `o` and edge weights `w` in a commutative ring, the Pfaffian of the signed weighted
-adjacency matrix is, up to a global sign `ε = ±1`, the sum over the perfect matchings of the
-products of the weights of their edges. -/
+/-- **Kasteleyn's theorem**, weighted form. For a plane rotation system (which has at least one
+edge, see `RotationSystem.IsPlane`) with a Kasteleyn orientation `o` and edge weights `w` in a
+commutative ring, the Pfaffian of the signed weighted adjacency matrix is, up to a global sign `ε =
+±1`, the sum over the perfect matchings of the products of the weights of their edges. -/
 def PfaffianFormula : Prop :=
   ∀ {V : Type u} [Fintype V] [LinearOrder V] (G : SimpleGraph V) [DecidableRel G.Adj]
     (M : RotationSystem G), M.IsPlane → ∀ (o : G.Dart → Bool) (f₀ : M.Face), M.IsKasteleyn o f₀ →
@@ -313,10 +319,10 @@ def PfaffianFormula : Prop :=
       ∃ ε : R, (ε = 1 ∨ ε = -1) ∧ pf (signedAdj o w) =
         ε * ∑ μ ∈ graphPerfectMatchings G, ∏ x ∈ univ with x < μ x, w s(x, μ x)
 
-/-- **Kasteleyn's theorem**, counting form. For a plane rotation system with a Kasteleyn
-orientation `o`, the Pfaffian of the signed adjacency matrix (unit weights, integer entries) is
-plus or minus the number of perfect matchings, and its determinant is the square of that
-number. -/
+/-- **Kasteleyn's theorem**, counting form. For a plane rotation system (which has at least one
+edge) with a Kasteleyn orientation `o`, the Pfaffian of the signed adjacency matrix (unit weights,
+integer entries) is plus or minus the number of perfect matchings, and its determinant is the square
+of that number. -/
 def MatchingCount : Prop :=
   ∀ {V : Type u} [Fintype V] [LinearOrder V] (G : SimpleGraph V) [DecidableRel G.Adj]
     (M : RotationSystem G), M.IsPlane → ∀ (o : G.Dart → Bool) (f₀ : M.Face), M.IsKasteleyn o f₀ →
@@ -324,24 +330,41 @@ def MatchingCount : Prop :=
         pf (signedAdj o (fun _ => (1 : ℤ))) = -#(graphPerfectMatchings G)) ∧
       (signedAdj o (fun _ => (1 : ℤ))).det = (#(graphPerfectMatchings G) : ℤ) ^ 2
 
-/-- **A Kasteleyn orientation in linear time.** There is one fixed program for the machine
-`WordRAM` such that, for every connected rotation system with `F` faces and `S` darts, every
-numbering `eF` of the faces, every numbering `eD` of the darts and every root face `f₀`, the
+/-- **A Kasteleyn orientation in linear time.** There is one fixed word program for the machine
+`WordRAM` (no real instruction, `WordRAM.Program.IsWord`) such that, for every rotation system of
+a connected graph with at least one edge, with `F` faces and `S` darts, every numbering `eF` of
+the faces, every numbering `eD` of the darts and every root face `f₀`, the
 encoding `Orient.rotEnc M eF eD f₀` has `4 + F + 3 S` words, and the program run on it halts
 within `36 F + 39 S + 27` steps, with every natural word at most `Orient.rotW M = 4 F + 5 S + 8`,
 and prints `S` words; reading the word in the slot of each dart (`1` meaning forward) gives a
 Kasteleyn orientation with respect to `f₀`. -/
 def LinearTimeOrientation : Prop :=
-  ∃ prog : WordRAM.Program,
+  ∃ prog : WordRAM.Program, WordRAM.Program.IsWord prog ∧
     ∀ {V : Type u} [Fintype V] [DecidableEq V] (G : SimpleGraph V) [DecidableRel G.Adj]
       (M : RotationSystem G) (eF : M.Face ≃ Fin (Fintype.card M.Face))
-      (eD : G.Dart ≃ Fin (Fintype.card G.Dart)), G.Connected → ∀ f₀ : M.Face,
+      (eD : G.Dart ≃ Fin (Fintype.card G.Dart)), G.Connected → G.edgeFinset.Nonempty →
+      ∀ f₀ : M.Face,
       (Orient.rotEnc M eF eD f₀).length = 4 + Fintype.card M.Face + 3 * Fintype.card G.Dart ∧
       ∃ out : List ℕ,
         WordRAM.RunsWithin prog (Orient.inp (Orient.rotEnc M eF eD f₀)) (Orient.rotW M)
           (36 * Fintype.card M.Face + 39 * Fintype.card G.Dart + 27) out ∧
         out.length = Fintype.card G.Dart ∧
         M.IsKasteleyn (fun x => decide (out.getD (Orient.pos M eF eD x) 0 = 1)) f₀
+
+/-- **The graph without edges.** A connected graph without edges is a single vertex. It has no
+darts, hence no faces (`RotationSystem.Face`) and no edges to orient, and it is not plane in the
+sense of `RotationSystem.IsPlane`, so the statements above leave it out. Kasteleyn's identities
+hold for it all the same: it has no perfect matching, and for every orientation and all weights
+the Pfaffian of the signed adjacency matrix (the `1 × 1` zero matrix) equals the sum over its
+perfect matchings, both being `0`, and the determinant with unit weights is the square of their
+number, `0`. -/
+def EdgelessCase : Prop :=
+  ∀ {V : Type u} [Fintype V] [LinearOrder V] (G : SimpleGraph V) [DecidableRel G.Adj],
+    G.Connected → G.edgeFinset = ∅ →
+      Fintype.card V = 1 ∧ IsEmpty G.Dart ∧ graphPerfectMatchings G = ∅ ∧
+      ∀ (o : G.Dart → Bool) (R : Type v) [CommRing R] (w : Sym2 V → R),
+        pf (signedAdj o w) = ∑ μ ∈ graphPerfectMatchings G, ∏ x ∈ univ with x < μ x, w s(x, μ x) ∧
+        (signedAdj o (fun _ => (1 : ℤ))).det = (#(graphPerfectMatchings G) : ℤ) ^ 2
 
 end Kasteleyn
 

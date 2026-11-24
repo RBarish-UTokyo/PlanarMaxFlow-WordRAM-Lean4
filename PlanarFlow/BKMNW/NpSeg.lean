@@ -1,6 +1,7 @@
 module
 
 public import PlanarFlow.BKMNW.NpNode
+public import Mathlib.Data.List.GetD
 
 /-!
 # `segP`: the parts of the separator at the node, by rerunning the separator

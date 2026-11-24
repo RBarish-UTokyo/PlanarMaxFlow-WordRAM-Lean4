@@ -2,6 +2,7 @@ module
 
 public import PlanarFlow.BKMNW.ExistSegsD
 public import PlanarFlow.BKMNW.TwoGroupsProg
+public import Mathlib.Data.List.GetD
 
 /-!
 # The runs of a separator off the holes on the machine

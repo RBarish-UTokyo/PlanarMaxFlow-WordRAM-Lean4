@@ -1,6 +1,7 @@
 module
 
 public import PlanarFlow.BKMNW.LevelProg
+public import Mathlib.Data.List.GetD
 
 /-!
 # One level of `scertD` with the bound on the number of pruned indices

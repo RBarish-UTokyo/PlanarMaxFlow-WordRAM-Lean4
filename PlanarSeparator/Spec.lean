@@ -1,10 +1,8 @@
 module
 
 public import NestedDissection.Spec
-public import NestedDissection.DetModSpec
 public import Kasteleyn.Spec
 public import Mathlib.Analysis.SpecialFunctions.Log.Base
-public import Mathlib.NumberTheory.PrimeCounting
 
 /-!
 # Specification: planar separators and nested dissection
@@ -12,8 +10,7 @@ public import Mathlib.NumberTheory.PrimeCounting
 This file is the authoritative statement of the `PlanarSeparator` entry. It imports only Mathlib
 and the Mathlib-only specification modules `WordRAM/Spec.lean` (the machine),
 `WordRAM/AlgebraicSpec.lean` (the counting monad), `NestedDissection/Spec.lean` (separator
-trees, the filled graph, elimination restricted to a pattern, squares of graphs),
-`NestedDissection/DetModSpec.lean` (the input of the determinant program) and
+trees, the filled graph, elimination restricted to a pattern, squares of graphs) and
 `Kasteleyn/Spec.lean` (rotation systems and plane rotation systems; only its section `Map` is
 used). The development imports this file, so the theorems of the library are about exactly these
 constants. `Challenge.lean` contains a generated, self-contained copy,
@@ -21,18 +18,24 @@ followed by the targets with `sorry`.
 
 ## Conventions
 
-* A plane graph is a Mathlib `SimpleGraph` `G` on a finite vertex type with a plane rotation
-  system `R : Kasteleyn.RotationSystem G` (`R.IsPlane`: `G` is connected and Euler's formula
-  `V + F = E + 2` holds for the faces of `R`). That rotation systems are the combinatorial form of
-  embeddings in oriented surfaces, and that Euler's formula singles out the sphere, is classical
-  and not formalized.
+* A plane graph is a Mathlib `SimpleGraph` `G` on a finite vertex type with a plane rotation system
+  `R : Kasteleyn.RotationSystem G` (`R.IsPlane`: `G` is connected and Euler's formula
+  `|V| + |F| = |E| + 2` holds for the set `F` of faces of `R`). That rotation systems are the
+  combinatorial form of embeddings in oriented surfaces, and that Euler's formula singles out the
+  sphere, is classical and not formalized.
 * A separator tree of `G` (`NestedDissection.SepTree`) splits the vertex set recursively into a
   separator and two parts with no edge between them. Its nested dissection order
   (`SepTree.order`) lists the first part, the second part, then the separator, recursively.
 * Elimination in the nested dissection order is elimination of `A.submatrix σ σ`, where
-  `σ k` is the `k`-th vertex of the order. `NestedDissection.stage A n` is the matrix after
-  Gaussian elimination without pivoting written in place (its upper triangle and diagonal are the
-  upper factor and the pivots, its strict lower triangle times the pivots the lower factor).
+  `σ k` is the `k`-th vertex of the order. `NestedDissection.stage A n` is the matrix after the
+  `n` in-place elimination steps `M i j ↦ M i j - M i k (M k k)⁻¹ M k j` for `i, j > k`, with the
+  inverse of the field, which Lean totalizes by `0⁻¹ = 0`. When all the pivots `M k k` met are
+  nonzero (for instance, when all leading principal minors of `A` are nonzero), this is Gaussian
+  elimination without pivoting (the upper triangle and diagonal of the result are the upper
+  factor and the pivots, its strict lower triangle times the pivots the lower factor). At a zero
+  pivot, where elimination without pivoting is undefined, the totalized step leaves the matrix
+  unchanged. The elimination statements hold for every matrix with the given pattern in this
+  totalized sense.
   `NestedDissection.sparseCounted H A n` is the same elimination restricted to the positions of a
   graph `H`, in the counting monad `WordRAM.Algebraic.Counted`: one operation per ring operation
   performed through the charged primitives (an inversion counts as one multiplication), data
@@ -45,8 +48,8 @@ followed by the targets with `sorry`.
 
 * `IsSeparation G U S A B`: `S` separates `U` into `A` and `B`.
 * The targets: `SeparatorTheorem`, `SeparatorTheoremInduced`, `SepTreeExists`,
-  `SquareSepTreeExists`, `FillBound`, `PlanarNestedDissection`, `SquareNestedDissection`,
-  `DetModMachine`, `RandomPrimeError` and `SeparatorMachine` (with the input `sepInput`).
+  `SquareSepTreeExists`, `FillBound`, `PlanarNestedDissection`, `SquareNestedDissection` and
+  `SeparatorMachine` (with the input `sepInput`).
 -/
 
 @[expose] public section
@@ -79,7 +82,9 @@ universe u
 /-- **The planar separator theorem** (Lipton and Tarjan 1979), weighted form. Let `R` be a plane
 rotation system of a graph `G` with `n` vertices, and let `w` be nonnegative weights on the
 vertices with total at most `1`. Then a set `S` of at most `6 √n` vertices separates the graph
-into two parts `A` and `B`, with no edge between them, each of weight at most `2/3`. -/
+into two parts `A` and `B`, with no edge between them, each of weight at most `2/3`.
+
+As `IsPlane` requires, `G` is connected and has at least one edge. -/
 def SeparatorTheorem : Prop :=
   ∀ {V : Type u} [Fintype V] [DecidableEq V] (G : SimpleGraph V) [DecidableRel G.Adj]
     (R : Kasteleyn.RotationSystem G), R.IsPlane → ∀ w : V → ℝ, (∀ v, 0 ≤ w v) → ∑ v, w v ≤ 1 →
@@ -87,9 +92,11 @@ def SeparatorTheorem : Prop :=
       ∑ v ∈ A, w v ≤ 2 / 3 ∧ ∑ v ∈ B, w v ≤ 2 / 3
 
 /-- **The planar separator theorem for induced subgraphs.** Let `R` be a plane rotation system of
-a graph `G`, let `U` be a set of `m` vertices and let `w` be nonnegative weights with total weight
-on `U` at most `1`. Then `U` is separated by a set `S` of at most `6 √m` of its vertices into two
-parts `A` and `B`, with no edge of `G` between them, each of weight at most `2/3`. -/
+a graph `G`, let `U` be a set of `k` vertices and let `w` be nonnegative weights with total weight
+on `U` at most `1`. Then `U` is separated by a set `S` of at most `6 √k` of its vertices into two
+parts `A` and `B`, with no edge of `G` between them, each of weight at most `2/3`.
+
+As `IsPlane` requires, `G` is connected and has at least one edge. -/
 def SeparatorTheoremInduced : Prop :=
   ∀ {V : Type u} [Fintype V] [DecidableEq V] (G : SimpleGraph V) [DecidableRel G.Adj]
     (R : Kasteleyn.RotationSystem G), R.IsPlane → ∀ (U : Finset V) (w : V → ℝ),
@@ -98,9 +105,11 @@ def SeparatorTheoremInduced : Prop :=
       ∑ v ∈ A, w v ≤ 2 / 3 ∧ ∑ v ∈ B, w v ≤ 2 / 3
 
 /-- **Separator trees of plane graphs with boundary bounds** (Lipton, Rose and Tarjan 1979). Every
-plane graph has a separator tree on all its vertices in which every subtree with `m` vertices has
-a separator (at a leaf: a leaf set) of at most `50000 √m` vertices and a boundary of at most
-`50000 √m` vertices, and in which the two parts of every node have at most `2m/3` vertices. -/
+plane graph has a separator tree on all its vertices in which every subtree with `k` vertices has
+a separator (at a leaf: a leaf set) of at most `50000 √k` vertices and a boundary of at most
+`50000 √k` vertices, and in which the two parts of every node have at most `2k/3` vertices.
+
+As `IsPlane` requires, `G` is connected and has at least one edge. -/
 def SepTreeExists : Prop :=
   ∀ {V : Type u} [Fintype V] [DecidableEq V] (G : SimpleGraph V) [DecidableRel G.Adj]
     (R : Kasteleyn.RotationSystem G), R.IsPlane →
@@ -109,7 +118,9 @@ def SepTreeExists : Prop :=
 
 /-- **Separator trees of squares of plane graphs of bounded degree.** If `G` is plane with
 maximum degree at most `Δ`, its square has a separator tree as in `SepTreeExists`, with the
-constant `T = 40 (1062 (Δ + 1)² + 1)` in place of `50000`. -/
+constant `T = 40 (1062 (Δ + 1)² + 1)` in place of `50000`.
+
+As `IsPlane` requires, `G` is connected and has at least one edge. -/
 def SquareSepTreeExists : Prop :=
   ∀ {V : Type u} [Fintype V] [DecidableEq V] (G : SimpleGraph V) [DecidableRel G.Adj]
     (R : Kasteleyn.RotationSystem G), R.IsPlane → ∀ Δ : ℕ, (∀ v, G.degree v ≤ Δ) →
@@ -119,8 +130,8 @@ def SquareSepTreeExists : Prop :=
 
 /-- **The fill of nested dissection is `O(n log n)`** (Lipton, Rose and Tarjan 1979). Let `t` be
 a separator tree of a graph `G` on `Fin n` covering all vertices, with separators of at most
-`α √m` and boundaries of at most `β √m` vertices at every subtree with `m` vertices, and parts of
-at most `2m/3` vertices. If the vertices are eliminated in the nested dissection order of `t`
+`α √k` and boundaries of at most `β √k` vertices at every subtree with `k` vertices, and parts of
+at most `2k/3` vertices. If the vertices are eliminated in the nested dissection order of `t`
 (rank of `x` = position of `x` in `t.order`), the filled graph has at most
 `α (α + β) n (1 + log_{3/2} n)` edges. -/
 def FillBound : Prop :=
@@ -138,8 +149,11 @@ plane graph `G` on `Fin n` there is a separator tree `t` of `G`, with nested dis
   `T (T + T) n (1 + log_{3/2} n)` edges, `T = 50000`;
 * for every matrix `A` over a field whose off-diagonal nonzero entries are edges of `G`,
   elimination of `A.submatrix σ σ` restricted to the filled graph `H` computes exactly
-  `stage (A.submatrix σ σ) n`, the matrix after all `n` steps of Gaussian elimination without
-  pivoting, with at most `12 T (T + T)² n √n` operations. -/
+  `stage (A.submatrix σ σ) n`, the matrix after all `n` in-place elimination steps (Gaussian
+  elimination without pivoting when its pivots are nonzero; a step at a zero pivot, totalized by
+  `0⁻¹ = 0`, leaves the matrix unchanged), with at most `12 T (T + T)² n √n` operations.
+
+As `IsPlane` requires, `G` is connected and has at least one edge. -/
 def PlanarNestedDissection : Prop :=
   ∀ {n : ℕ} (G : SimpleGraph (Fin n)) [DecidableRel G.Adj] (R : Kasteleyn.RotationSystem G),
     R.IsPlane →
@@ -158,7 +172,9 @@ def PlanarNestedDissection : Prop :=
 /-- **Nested dissection for squares of plane graphs of bounded degree.** As
 `PlanarNestedDissection`, for the square of a plane graph `G` of maximum degree at most `Δ` (the
 matrices whose off-diagonal nonzero entries join vertices at distance at most `2` in `G`, such
-as `Kᵀ K` for a matrix `K` with pattern `G`), with `T = 40 (1062 (Δ + 1)² + 1)`. -/
+as `Kᵀ K` for a matrix `K` with pattern `G`), with `T = 40 (1062 (Δ + 1)² + 1)`.
+
+As `IsPlane` requires, `G` is connected and has at least one edge. -/
 def SquareNestedDissection : Prop :=
   ∀ {n : ℕ} (G : SimpleGraph (Fin n)) [DecidableRel G.Adj] (R : Kasteleyn.RotationSystem G),
     R.IsPlane → ∀ Δ : ℕ, (∀ v, G.degree v ≤ Δ) →
@@ -178,18 +194,6 @@ def SquareNestedDissection : Prop :=
                 (40 * (1062 * ((Δ : ℝ) + 1) ^ 2 + 1) + 40 * (1062 * ((Δ : ℝ) + 1) ^ 2 + 1)) ^ 2 *
                 (n * √n)
 
-/-- **The determinant modulo a prime on the machine in `O(n³ + n log p)` steps.** One fixed
-program for the machine `WordRAM`, run on an input `[n, p, a₀₀, a₀₁, …, a_{n-1,n-1}]` with `p`
-prime and with words of at least `p² + p` and `n² + 2` (and at least every input word), halts
-within `7 n² + n (11 n² + 30 n + 12 ⌊log₂ p⌋ + 62) + 17` steps with every natural word at most
-`W`, and prints `det A mod p`, as a number in `[0, p)`. -/
-def DetModMachine : Prop :=
-  ∃ prog : WordRAM.Program, ∀ (d : List ℕ) (W : ℕ), DetMod.DEnc d W →
-    WordRAM.RunsWithin prog (DetMod.inp d) W
-      (7 * DetMod.dim d * DetMod.dim d + DetMod.dim d * (11 * DetMod.dim d * DetMod.dim d +
-        30 * DetMod.dim d + 12 * Nat.log 2 (DetMod.prm d) + 62) + 17)
-      [(DetMod.inMat d).det.val]
-
 /-- The input of the separator program for a rotation system `R` of a graph on `Fin n` with
 vertex weights `w` and a numbering `di` of its `m` darts: the words `n, m`, then
 `ofs 0, …, ofs n` where `ofs v` is the number of darts leaving the vertices below `v`, then
@@ -203,16 +207,20 @@ def sepInput {n m : ℕ} {G : SimpleGraph (Fin n)} [DecidableRel G.Adj]
         [((di.symm i).fst : ℕ), (di (di.symm i).symm : ℕ), (di (R.rot (di.symm i)) : ℕ)]),
     fun _ => 0⟩
 
-/-- **The planar separator theorem on the machine in linear time.** One fixed program for the
-machine `WordRAM`, run on the input `sepInput R w di` of a plane rotation system `R` of a graph on
-`Fin n` with `m` darts, vertex weights `w` and a numbering `di` of the darts in which the darts
-leaving lower vertices come first, with words of at least `16 m + 12 n + 3 Σ w + 22`, halts
-within `320 m + 191 n + 403` steps and prints a list of words; reading word `v` of the list for
-each vertex `v` (`0` if the list is shorter), the vertices read as `0` form a set `S` of at most
-`6 √n + 3` vertices separating those read as `1` from those read as `2`, and each of these two
-parts weighs at most `2/3` of the total. -/
+/-- **The planar separator theorem on the machine in linear time.** One fixed word program for the
+machine `WordRAM` (no real instruction, `WordRAM.Program.IsWord`), run on the input
+`sepInput R w di` of a plane rotation system `R` of a graph on `Fin n` with `m` darts, vertex
+weights `w` and a numbering `di` of the darts in which the darts leaving lower vertices come
+first, with words of at least `16 m + 12 n + 3 Σ w + 22`, halts within `320 m + 191 n + 403` steps
+and prints a list of words; reading word `v` of the list for each vertex `v` (`0` if the list is
+shorter), the vertices read as `0` form a set `S` of at most `6 √n + 3` vertices separating those
+read as `1` from those read as `2`, and each of these two parts weighs at most `2/3` of the
+total.
+
+As `IsPlane` requires, `G` is connected and has at least one edge. -/
 def SeparatorMachine : Prop :=
-  ∃ prog : WordRAM.Program, ∀ {n m : ℕ} (G : SimpleGraph (Fin n)) [DecidableRel G.Adj]
+  ∃ prog : WordRAM.Program, WordRAM.Program.IsWord prog ∧
+    ∀ {n m : ℕ} (G : SimpleGraph (Fin n)) [DecidableRel G.Adj]
     (R : Kasteleyn.RotationSystem G), R.IsPlane → ∀ (w : Fin n → ℕ) (di : G.Dart ≃ Fin m),
     (∀ d d' : G.Dart, d.fst < d'.fst → di d < di d') → ∀ W : ℕ,
     16 * m + 12 * n + 3 * ∑ v, w v + 22 ≤ W →
@@ -222,16 +230,6 @@ def SeparatorMachine : Prop :=
       (#{v : Fin n | out.getD v 0 = 0} : ℝ) ≤ 6 * √(n : ℝ) + 3 ∧
       3 * ∑ v ∈ univ.filter (fun v : Fin n => out.getD v 0 = 1), w v ≤ 2 * ∑ v, w v ∧
       3 * ∑ v ∈ univ.filter (fun v : Fin n => out.getD v 0 = 2), w v ≤ 2 * ∑ v, w v
-
-/-- **Comparing integers modulo a random prime.** Two distinct integers `a`, `b` with
-`|a - b| < 2 ^ k` are congruent modulo at most `k` of the primes up to `N`; and there are many
-primes up to `N`: `2 ^ N ≤ (N + 1) N ^ π(N)`. Hence comparing `a` and `b` modulo a prime drawn
-uniformly from the primes up to `N` errs with probability at most `k / π(N)`, and
-`π(N) ≥ (N - log₂ (N + 1)) / log₂ N`. -/
-def RandomPrimeError : Prop :=
-  (∀ a b : ℤ, a ≠ b → ∀ k : ℕ, (a - b).natAbs < 2 ^ k → ∀ N : ℕ,
-    #((Nat.primesLE N).filter fun p => (a : ZMod p) = b) ≤ k) ∧
-  ∀ N : ℕ, 2 ^ N ≤ (N + 1) * N ^ Nat.primeCounting N
 
 end PlanarSeparator
 

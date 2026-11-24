@@ -3,6 +3,7 @@ module
 public import PlanarFlow.NegSSSP.DriverRun
 public import PlanarFlow.NegSSSP.CompProg
 public import PlanarFlow.NegSSSP.SplitRunA
+public import Mathlib.Data.List.GetD
 
 /-!
 # The frame format of the recursion for negative lengths

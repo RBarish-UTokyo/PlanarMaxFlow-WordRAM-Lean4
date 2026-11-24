@@ -437,6 +437,7 @@ public import PlanarFlow.BKMNW.NfNeg
 public import PlanarFlow.BKMNW.NfRst
 public import PlanarFlow.BKMNW.NfStage
 public import PlanarFlow.BKMNW.NfSwP
+public import PlanarFlow.BKMNW.NfWord
 public import PlanarFlow.BKMNW.NoEmit
 public import PlanarFlow.BKMNW.NpCnt
 public import PlanarFlow.BKMNW.NpCntM

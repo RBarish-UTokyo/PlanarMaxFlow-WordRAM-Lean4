@@ -2,6 +2,7 @@ module
 
 public import PlanarFlow.NegSSSP.LinGlue
 public import PlanarFlow.MSSP.IsoTree
+public import Mathlib.Data.List.GetD
 
 /-!
 # The isolating weights of a spanning tree of the dual graph, on the machine
